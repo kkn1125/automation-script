@@ -1,0 +1,91 @@
+#! /usr/bin/env bash
+
+## 잘못된 응답 메세지 및 종료
+function errorAlert {
+  log "y 또는 n으로만 답해주세요."
+}
+
+## 완료 작업
+function completeType {
+  local TYPE=$1
+  if [[ "$TYPE" == "imm" ]]; then
+    exit 0
+  else
+    read -p "아무키나 누르세요..."
+    exit 0
+  fi
+}
+
+## 메세지 및 종료
+function closeProgram {
+  log "프로그램을 종료합니다."
+  exit 0
+}
+
+## 인터렉티브 & 되묻기
+function askDoNext {
+  # -y 옵션 사용 시 무시
+  if [[ $AUTOMATION == true ]]; then
+    return
+  fi
+  # 묻기
+  read -rep $'[PROC] 다음 작업을 진행하시겠습니까? (y/N)\n> ' CONTINUE
+
+  # 진행 여부 저장
+  CONTINUE=${CONTINUE:-n}
+
+  # 진행 값 한정
+  if [[ "$CONTINUE" != "y" && "$CONTINUE" != "n" ]]; then
+    errorAlert
+    askDoNext
+  fi
+
+  # 진행 판별
+  if [[ "$CONTINUE" == "n" ]]; then
+    closeProgram
+  fi
+}
+
+# logging
+function log {
+  if [[ "$2" == "" ]]; then
+    printf "[PROC] %s\n" "$1"
+    return
+  fi
+  local add_pad=${3:-0}
+  local max_len=20
+  local len=$(echo -n "$1" | wc -c)
+  local padding=$((max_len - len + add_pad))
+  # 패딩이 0보다 작은 경우(너무 긴 경우)를 방지
+  if [ $padding -lt 0 ]; then
+    padding=0
+  fi
+  printf "[PROC] %s%-${padding}s: %s\n" "$1" " " "$2"
+}
+
+## 헬퍼 메세지
+function helpMessage {
+  echo """#################################
+###                           ###
+###     Automation 도움말     ###
+###                           ###
+#################################
+
+Author: devkimson
+Usage: npm run deply -- [OPTION]...
+       bash automation [OPTION]...
+Options:
+  -v, --version <version>    배포 버전을 입력합니다. 패키징될 때 표기됩니다.
+  -b, --build                빌드 프로세스를 활성화합니다.
+  -p, --packaging            패키징 프로세스를 활성화합니다.
+  -y, --yes                  모든 프로세스를 자동으로 처리합니다."""
+}
+
+## 패키징 함수
+function packaging {
+  local FILES=$1
+  local OUTPUT=$2
+  echo files $FILES
+  echo output $OUTPUT
+  tar -cf $OUTPUT $FILES
+}

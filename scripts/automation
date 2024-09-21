@@ -1,0 +1,142 @@
+#! /usr/bin/env bash
+
+# # script arguments amount
+# echo $#
+# # script arguments
+# echo $@
+
+# 스크립트 경로 가져오기
+BUILD_TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+SCRIPT_DIR=$(dirname "${BASH_SOURCE[0]}")
+# 스크립트 호출 경로가 달라질 때 source 경로 대응
+source $SCRIPT_DIR/module
+
+## 변수 정의
+DEPLOY_VERSION=$(grep '"version"' package.json | sed 's/.*: "\(.*\)".*/\1/')
+
+AUTOMATION=false
+CONTINUE="n"
+
+IS_BUILD=false
+BUILD_DIR=dist/
+
+IS_PACKAGING=false
+PACKAGING_DIR=build/
+PACKAGING_NAME="${BUILD_TIMESTAMP}_auto_packaging_${DEPLOY_VERSION}.zip"
+
+SQL_DUMP_DIR=sql_dump/
+
+FILES=".env \
+src/
+sql_dump \
+scripts \
+dist"
+
+# # getopts로 옵션 처리 short-form의 -option value 만 파싱가능함.
+# while getopts ":build:b:packaging:p:y:help" opt; do
+#   case $opt in
+#     help)
+#       echo "도움말입니다"
+#       ;;
+#     build|b)
+#       IS_BUILD=true
+#       ;;
+#     packaging|p)
+#       IS_PACKAGING=true
+#       ;;
+#     y)
+#       AUTOMATION=true
+#       ;;
+#     \?)
+#       echo "Invalid option: -$OPTARG" >&2
+#       exit 1
+#       ;;
+#     :)
+#       echo "Option -$OPTARG requires an argument." >&2
+#       exit 1
+#       ;;
+#   esac
+# done
+
+## 명령줄 인자 수동 파싱
+# long-form --option value를 파싱할 수 있다.
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  -v | --version)
+    # 값을 받는 인자라면 다음 인자 값을 저장한다.
+    # 그리고 shift 2로 두개 인자를 날린다.
+    DEPLOY_VERSION="$2"
+    shift 2
+    ;;
+  -b | --build)
+    # 값을 받지 않는 고정 값 인자는 shift로 한개 인자를 날린다.
+    IS_BUILD=true
+    shift
+    ;;
+  -p | --packaging)
+    IS_PACKAGING=true
+    shift
+    ;;
+  -y | --yes)
+    AUTOMATION=true
+    CONTINUE="y"
+    shift
+    ;;
+  -h | --help)
+    helpMessage
+    shift
+    exit 0
+    ;;
+  *)
+    log "Unknown option: $1"
+    exit 1
+    ;;
+  esac
+done
+
+## 옵션 상태 표시
+log "빌드 버전" $DEPLOY_VERSION
+log "빌드 설정" $IS_BUILD
+log "패키징 파일" "$FILES" 1
+log "패키징 설정" $IS_PACKAGING 1
+log "패키징 경로" $PACKAGING_DIR 1
+log "빌드 경로" $BUILD_DIR
+log "SQL 덤프 경로" $SQL_DUMP_DIR
+
+## 초기 진행 알림
+log "자동화 시스템을 실행합니다."
+
+if [[ $IS_BUILD == true ]]; then
+  log "빌드를 진행합니다."
+  if [[ $AUTOMATION == false ]]; then
+    askDoNext
+  fi
+  if [[ "$CONTINUE" == "y" ]]; then
+    # 빌드 작업 내용 작성...
+    log "빌드 중"
+    npm run build
+  fi
+fi
+
+if [[ $IS_PACKAGING == true ]]; then
+  log "패키징을 진행합니다."
+  if [[ $AUTOMATION == false ]]; then
+    askDoNext
+  fi
+  if [[ "$CONTINUE" == "y" ]]; then
+    # 패키징 작업 내용 작성...
+    log "패키징 중"
+    OUTPUT=$PACKAGING_DIR$PACKAGING_NAME
+    packaging "$FILES" $OUTPUT
+  fi
+fi
+
+if [[ $IS_BUILD == false && $IS_PACKAGING == false ]]; then
+  log "작업 내역이 없습니다."
+else
+  log "모든 프로세스가 완료되었습니다."
+fi
+
+# 최종 완료 시
+
+completeType
