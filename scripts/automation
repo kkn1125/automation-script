@@ -65,6 +65,10 @@ while [[ "$#" -gt 0 ]]; do
   -v | --version)
     # 값을 받는 인자라면 다음 인자 값을 저장한다.
     # 그리고 shift 2로 두개 인자를 날린다.
+    if [[ "$2" == '' ]]; then
+      log "버전을 입력해야합니다."
+      exit 0
+    fi
     DEPLOY_VERSION="$2"
     shift 2
     ;;
